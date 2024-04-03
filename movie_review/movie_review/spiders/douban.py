@@ -11,8 +11,16 @@ class DouBanSpider(scrapy.Spider):
     name = 'douban'
 
     def start_requests(self):
-        with open('./data/top.txt', 'r') as f:
-            top_list = f.readlines()
+        if hasattr(self, 'movie_id'):
+            top_list = [self.movie_id + '\n']
+        else:
+            if hasattr(self, 'top_list_path'):
+                top_list_path = self.top_list_path
+            else:
+                top_list_path = './data/top.txt'
+            with open(top_list_path, 'r') as f:
+                top_list = f.readlines()
+        
         for movie_id in top_list:
             for start in range(0, 200, 20):
                 meta = {
