@@ -4,6 +4,7 @@ import csv
 import os
 import requests
 from lxml.html import fromstring
+import pandas as pd
 
 
 import scrapy
@@ -17,19 +18,19 @@ class DouBanSpider(scrapy.Spider):
         if hasattr(self, 'movie_id'): 
             # The usage example: scrapy crawl douban -a movie_id=30424374
             top_list = [self.movie_id + '\n']
-            self.review_csv_filename = f'review.{self.movie_id}.csv'
+            self.review_xlsx_filename = f'review.{self.movie_id}.xlsx'
         else:
             if hasattr(self, 'top_list_path'):
                 top_list_path = self.top_list_path
-                self.review_csv_filename = f'review.{os.path.basename(top_list_path)}.csv'
+                self.review_xlsx_filename = f'review.{os.path.basename(top_list_path)}.xlsx'
             else:
                 top_list_path = './data/top.txt'
-                self.review_csv_filename = 'review.csv'
+                self.review_xlsx_filename = 'review.xlsx'
             with open(top_list_path, 'r') as f:
                 top_list = f.readlines()
         
         if hasattr(self, 'episode'):
-            self.review_csv_filename = self.review_csv_filename.replace('.csv', f'.{self.episode}.csv')
+            self.review_xlsx_filename = self.review_xlsx_filename.replace('.xlsx', f'.{self.episode}.xlsx')
 
         for movie_id in top_list:
             if hasattr(self, 'episode'):
@@ -51,11 +52,15 @@ class DouBanSpider(scrapy.Spider):
 
     def parse(self, response):
         if hasattr(self, 'episode'):
-            review_list = response.xpath('//p/span[@class=""]/text()').extract()
+            # review_list = response.xpath('//p/span[@class=""]/text()').extract()
+            review_list = response.xpath('//p/span[@class=""]').extract()
+            review_list = list(map(lambda x: x.replace('<span class="">', '').replace('</span>', ''), review_list))
         else:
-            review_list = response.xpath('//span[@class="short"]/text()').extract()
-        # XPath to the link to the last page in episode review response.xpath('//*[@id="content"]/div/div[1]/div[4]/a[10]/@href').get()
+            # review_list = response.xpath('//span[@class="short"]/text()').extract()
+            review_list = response.xpath('//span[@class="short"]').extract()
+            review_list = list(map(lambda x: x.replace('<span class="short">', '').replace('</span>', ''), review_list))
         print(review_list)
+        new_review_df_column = []
         for review in review_list:
             review = review.strip()
             review = review.replace('\t', '')
@@ -65,14 +70,12 @@ class DouBanSpider(scrapy.Spider):
             review = review.replace('\u200b', '')
 
             if review:
-                review_csv_path = os.path.join('.','data',self.review_csv_filename)
-                # Create the csv file if it doesn't exist
-                if not os.path.exists(review_csv_path):
-                    with open(review_csv_path, 'w', encoding='utf-8-sig') as f:
-                        # Use utf-8-sig to avoid encoding issue https://blog.csdn.net/weixin_46640900/article/details/110602702
-                        csv_write = csv.writer(f)
-                        csv_write.writerow(['review'])
-                with open(review_csv_path, 'a+', encoding='utf-8-sig') as f:
-                    csv_write = csv.writer(f)
-                    data_row = [review]
-                    csv_write.writerow(data_row)
+                new_review_df_column.append(review)
+
+        if os.path.exists(os.path.join('.','data',self.review_xlsx_filename)):
+            df = pd.read_excel(os.path.join('.','data',self.review_xlsx_filename))
+            df = df.append(pd.DataFrame(new_review_df_column, columns=['review']))
+        else:
+            df = pd.DataFrame(new_review_df_column, columns=['review'])
+        df.to_excel(os.path.join('.','data',self.review_xlsx_filename), index=False)
+        
