@@ -13,6 +13,7 @@ from scrapy.http import Request
 
 class DouBanSpider(scrapy.Spider):
     name = 'douban'
+    url_prefix = "https://movie.douban.com/"
 
     def start_requests(self):
         if hasattr(self, 'movie_id'): 
@@ -42,12 +43,12 @@ class DouBanSpider(scrapy.Spider):
                 # last_start = int(re.search(r'discussion_start=(\d+)', last_start_link).group(1))
 
                 for start in range(0,230 + 1,10):
-                    url = "https://movie.douban.com/subject/{}/episode/{}/?discussion_start={}".format(movie_id, self.episode, start)
+                    url = self.url_prefix + "subject/{}/episode/{}/?discussion_start={}".format(movie_id, self.episode, start)
                     yield Request(url=url)
             else:
                 for start in range(0, 200, 20):
                     movie_id = movie_id.replace('\n', '')
-                    url = 'https://movie.douban.com/subject/{}/comments?start={}&limit=20&sort=new_score&status=P'.format(movie_id, start)
+                    url = self.url_prefix + 'subject/{}/comments?start={}&limit=20&sort=new_score&status=P'.format(movie_id, start)
                     yield Request(url=url)
 
     def parse(self, response):
