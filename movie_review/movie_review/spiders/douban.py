@@ -74,7 +74,7 @@ class DouBanSpider(scrapy.Spider):
 
         if os.path.exists(os.path.join('.','data',self.review_xlsx_filename)):
             df = pd.read_excel(os.path.join('.','data',self.review_xlsx_filename))
-            df = df.append(pd.DataFrame(new_review_df_column, columns=['review']))
+            df = pd.concat([df, pd.DataFrame(new_review_df_column, columns=['review'])])
         else:
             df = pd.DataFrame(new_review_df_column, columns=['review'])
         df.to_excel(os.path.join('.','data',self.review_xlsx_filename), index=False)

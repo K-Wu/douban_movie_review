@@ -27,3 +27,6 @@ And remove all the version specifications from requirements.txt.
 The following solves the cannot find openssl headers problem
 
 https://stackoverflow.com/questions/37951303/fatal-error-c1083-cannot-open-include-file-openssl-opensslv-h
+
+
+And then, install pandas and openpyxl
