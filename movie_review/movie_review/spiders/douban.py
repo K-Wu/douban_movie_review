@@ -9,7 +9,7 @@ import pandas as pd
 
 import scrapy
 from scrapy.http import Request
-
+from .get_header import get_douban_headers
 
 class DouBanSpider(scrapy.Spider):
     name = 'douban'
@@ -44,14 +44,20 @@ class DouBanSpider(scrapy.Spider):
 
                 for start in range(0,230 + 1,10):
                     url = self.url_prefix + "subject/{}/episode/{}/?discussion_start={}".format(movie_id, self.episode, start)
-                    yield Request(url=url)
+                    yield Request(url=url)#, headers=get_douban_headers())
             else:
                 for start in range(0, 200, 20):
                     movie_id = movie_id.replace('\n', '')
                     url = self.url_prefix + 'subject/{}/comments?start={}&limit=20&sort=new_score&status=P'.format(movie_id, start)
-                    yield Request(url=url)
+                    yield Request(url=url)#, headers=get_douban_headers())
 
     def parse(self, response):
+        def get_rating(string: str):
+            result = re.search(r'allstar(\d\d)', string)
+            if result:
+                return int(result.group(1))
+            else:
+                return "No Rating"
         if hasattr(self, 'episode'):
             # review_list = response.xpath('//p/span[@class=""]/text()').extract()
             review_list = response.xpath('//p/span[@class=""]').extract()
@@ -60,9 +66,16 @@ class DouBanSpider(scrapy.Spider):
             # review_list = response.xpath('//span[@class="short"]/text()').extract()
             review_list = response.xpath('//span[@class="short"]').extract()
             review_list = list(map(lambda x: x.replace('<span class="short">', '').replace('</span>', ''), review_list))
-        print(review_list)
+        vote_list = response.xpath('//span[@class="vote-count"]/text()').extract()
+        vote_list = list(map(lambda x: x.replace('<span class="">', '').replace('</span>', ''), vote_list))
+
+        rating_list = response.xpath('//span[@class="comment-info"]').extract()
+        # Get \d\d from class="user-stars allstar\d\d rating"
+        rating_list = list(map(get_rating, rating_list))
+
         new_review_df_column = []
-        for review in review_list:
+        for idx, review in enumerate(review_list):
+            print(review)
             review = review.strip()
             review = review.replace('\t', '')
             review = review.replace('\n', '')
@@ -71,12 +84,13 @@ class DouBanSpider(scrapy.Spider):
             review = review.replace('\u200b', '')
 
             if review:
-                new_review_df_column.append(review)
+                new_review_df_column.append([review, vote_list[idx], rating_list[idx]])
+        print(new_review_df_column)
 
         if os.path.exists(os.path.join('.','data',self.review_xlsx_filename)):
             df = pd.read_excel(os.path.join('.','data',self.review_xlsx_filename))
-            df = pd.concat([df, pd.DataFrame(new_review_df_column, columns=['review'])])
+            df = pd.concat([df, pd.DataFrame(new_review_df_column, columns=['review', 'vote', 'rating'])])
         else:
-            df = pd.DataFrame(new_review_df_column, columns=['review'])
+            df = pd.DataFrame(new_review_df_column, columns=['review', 'vote', 'rating'])
         df.to_excel(os.path.join('.','data',self.review_xlsx_filename), index=False)
         
